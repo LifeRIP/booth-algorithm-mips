@@ -51,7 +51,6 @@ init_state:
 	li $s0, 0	# A
 	li $s3, 0 	# Q-1
 	li $s4, 1 	# Ciclos
-	li $s7, 16 	# Ciclos
 	
 	# Imprimir msg_multiplicando
 	li $v0, 4
@@ -78,44 +77,93 @@ print_top:
 	li $v0, 4
 	la $a0, msg_top
 	syscall
-
-
-# Bucle para ejecutar los ciclos
+	
+# Bucle para ejecutar los ciclos, while (Ciclos =! 16)
 main_loop:
-	#TODO: loop principal 16 ciclos
+	beq $s5, 16, exit		# Saltar a 'exit' si $s5 es igual a 16	
+	addi $s5, $s5, 1		# Incrementa el contador de ciclos $s5
+	
+	andi $s4, $s2, 1		# Guardar el LSB de Q en $s4
+	
+	j switch			# Salta al switch
+	
+	# j main_loop			# Repite el ciclo
 	
 switch:
-	#TODO: switch para case_shift, case 01, case 10
+	li $t8, 0
+	andi $s4, $s4, 1		# Guardar el LSB de Q en $s4
 	
+	beq $s4, $s3, case_shift	# if (Q0 == Q-1) case_shift 
+	beqz $s4, case_01		# if (Q0 == 0 & Q-1 == 1) case_01
+	j case_10			# if (Q0 == 1 & Q-1 == 0) case_10
+	
+	# Caso 00 y 11
+	case_shift:
+		jal a_r_shift		# Shift aritmetico hacia la derecha de A, Q, Q-1
+		jal print_cycle		# Imprime el ciclo
+		jal print_newline	# Imprimir un newline
+		j main_loop		# Regresa al loop principal
+		
+	# Caso 01
+	case_01:
+		add $s0, $s0, $s1	# A = A + M
+		jal print_cycle		# Imprime el ciclo
+		jal a_r_shift		# Shift aritmetico hacia la derecha de A, Q, Q-1
+		jal print_cycle		# Imprime el ciclo
+		jal print_newline	# Imprimir un newline
+		j main_loop		# Regresa al loop principal
+		
+	# Caso 10
+	case_10:
+		sub $s0, $s0, $s1	# A = A - M
+		jal print_cycle		# Imprime el ciclo
+		jal a_r_shift		# Shift aritmetico hacia la derecha de A, Q, Q-1
+		jal print_cycle		# Imprime el ciclo
+		jal print_newline	# Imprimir un newline
+		j main_loop		# Regresa al loop principal
+		
+
 # Imprimir cada ciclo 
 print_cycle:
+	move $t4, $ra			# Guardar direccion de retorno para evitar bucle
+	
 	# Imprimir un espacio
-	jal print_whitespace
+	li $v0, 4
+	la $a0, whitespace
+	syscall
 	
 	# Imprimir contador de ciclos
 	li $v0, 1
-	move $a0, $s4
+	move $a0, $s5
 	syscall
 	
 	# Imprimir un tab
-	jal print_tab
+	li $v0, 4
+	la $a0, tab
+	syscall
 	
 	# Imprimir A
-	move $t0, $s0
-	jal print_bin
+	move $t0, $s0			# Almacena A en $t0
+	jal print_bin			# Imprime en binario
 	
 	# Imprimir un tab
-	jal print_tab
+	li $v0, 4
+	la $a0, tab
+	syscall
 	
 	# Imprimir Q
-	move $t0, $s2
-	jal print_bin
+	move $t0, $s2			# Almacena Q en $t0
+	jal print_bin			# Imprime en binario
 	
 	# Imprimir un tab
-	jal print_tab
+	li $v0, 4
+	la $a0, tab
+	syscall
 	
 	# Imprimir un space
-	jal print_whitespace
+	li $v0, 4
+	la $a0, whitespace
+	syscall
 	
 	# Imprimir Q-1
 	li $v0, 1
@@ -123,35 +171,28 @@ print_cycle:
 	syscall
 	
 	# Imprimir un tab
-	jal print_tab
+	li $v0, 4
+	la $a0, tab
+	syscall
 	
 	# Imprimir M
-	move $t0, $s1
-	jal print_bin
+	move $t0, $s1			# Almacena M en $t0
+	jal print_bin			# Imprime en binario
 	
 	# Imprimir un newline
-	jal print_newline
+	li $v0, 4
+	la $a0, newline
+	syscall
 	
-	# PRUEBAS DE FUNCIONAMIENTO DEL SHIFT #
-	jal a_r_shift
+	jr $t4				# Salta a dirección de retorno guardada al inicio
 	
-	add $s4, $s4, 1
-	bne $s4, 16 print_cycle
-	
-	jal exit
-
 # ------ OPERACIONES ------ #
-
-# A = A + M
-add: 
-	add $s0, $s0, $s1 
-	
-# A = A - M
-sub:
-	sub $s0, $s0, $s1
 
 # Shift aritmetico hacia la derecha de A, Q, Q-1
 a_r_shift:
+
+# TODO: ARREGLAR SHIFT O PRINT CYCLE, NO SE DONDE ES EL ERROR
+
 	andi $t1, $s0, 1		# Guardar el LSB de A en $t1
 	sll $t1, $t1, 15		# Desplazar 15 posiciones a la izquierda el LSB de A
 	sra $s0, $s0, 1			# Desplazar arit. a la derecha A
@@ -166,12 +207,12 @@ a_r_shift:
 	jr $ra
 	
 
-# Imprimir un entero en binario de 16 bits
+# Imprimir un entero almacenado en $t0 en binario de 16 bits
 print_bin:
 	li $t1, 15			# Cargar el valor 15 en $t1 (para imprimir 16 bits)
 	li $v0, 1
 	bin_loop:
-		srlv $t2, $t0, $t1	# Desplazar el MSB a la posición 0
+		srlv $t2, $t0, $t1	# Desplazar el MSB a la posicion 0
 		andi $t3, $t2, 1	# Guardar el LSB (posicion 0)
 		
 		# Imprimir el bit actual (0 o 1)

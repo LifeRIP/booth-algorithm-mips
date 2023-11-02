@@ -1,18 +1,20 @@
 #####################################################################################################
 #
 # ARCHIVO	:	booth-algorithm-mips.asm
-# AUTOR		:	Joan Jaramillo, 2023
+# AUTOR		:	Joan Jaramillo
+# FECHA		:	29-10-2023
 # CODIGO	:	2159930
-# DESCRIPCION	:	Algoritmo Booth para la multiplicaciï¿½n de numeros con signo de 16 bits
+# DESCRIPCION	:	Algoritmo Booth para la multiplicacion de numeros con signo de 16 bits
 #
 # -----------
 # ARGUMENTOS
 # ----------- 
-# $s0: A (inicia en 0)
+# $s0: A
 # $s1: M (multiplicando)
 # $s2: Q (multiplicador)
 # $s3: Q-1
-# $s4: Contador de ciclos
+# $s4: Q0
+# $s5: Contador de ciclos
 #
 #####################################################################################################
 
@@ -20,7 +22,7 @@
 
 	.data
 	
-# Definición de variables
+# Definicion de variables
 whitespace:			.asciiz " "
 tab:				.asciiz "\t"
 newline:			.asciiz "\n"
@@ -30,9 +32,10 @@ msg_a:				.asciiz "A "
 msg_q:				.asciiz "Q "
 msg_q_1:			.asciiz "Q-1 "
 msg_top:			.asciiz "Ciclo\t\tA\t\t\tQ\t\tQ-1\t\tM\t\t    Procesos\n"
+msg_val:			.asciiz "\tValores iniciales\n"
 msg_shift:			.asciiz "\t[--] >>>\n"
-msg_01:				.asciiz "\t[01] A = A + M"
-msg_10:				.asciiz "\t[10] A = A - M"
+msg_01:				.asciiz "\t[01] A = A + M\n"
+msg_10:				.asciiz "\t[10] A = A - M\n"
 
 # ------  MAIN ------ #
 
@@ -42,7 +45,6 @@ msg_10:				.asciiz "\t[10] A = A - M"
 main:
 	j init_state
 	
-
 # ------ FUNCIONES ------ #
 
 # Cargar valores iniciales
@@ -50,7 +52,8 @@ init_state:
 	# Incializar variables en 0
 	li $s0, 0	# A
 	li $s3, 0 	# Q-1
-	li $s4, 1 	# Ciclos
+	li $s4, 0 	# Q0
+	li $s5, 0 	# Ciclos
 	
 	# Imprimir msg_multiplicando
 	li $v0, 4
@@ -71,12 +74,21 @@ init_state:
 	li $v0, 5
 	syscall
 	move $s2, $v0	# Almacenar Q en $s2
+	
+	jal print_newline		# Imprimir un newline
 
 # Imprimir titulos de la tabla
 print_top:
 	li $v0, 4
 	la $a0, msg_top
 	syscall
+	
+	# Imprime ciclo 0
+	jal print_cycle			# Imprime el ciclo
+		
+	jal print_msg_val		# Imprimir un msg_val
+	
+	jal print_newline		# Imprimir un newline
 	
 # Bucle para ejecutar los ciclos, while (Ciclos =! 16)
 main_loop:
@@ -85,10 +97,7 @@ main_loop:
 	
 	andi $s4, $s2, 1		# Guardar el LSB de Q en $s4
 	
-	j switch			# Salta al switch
-	
-	# j main_loop			# Repite el ciclo
-	
+# Condicional de Q0 y Q-1
 switch:
 	li $t8, 0
 	andi $s4, $s4, 1		# Guardar el LSB de Q en $s4
@@ -101,98 +110,42 @@ switch:
 	case_shift:
 		jal a_r_shift		# Shift aritmetico hacia la derecha de A, Q, Q-1
 		jal print_cycle		# Imprime el ciclo
+		jal print_msg_shift	# Imprimir un msg_shift
+		
 		jal print_newline	# Imprimir un newline
+		
 		j main_loop		# Regresa al loop principal
 		
 	# Caso 01
 	case_01:
 		add $s0, $s0, $s1	# A = A + M
 		jal print_cycle		# Imprime el ciclo
+		jal print_msg_01	# Imprime el msg_01
+		
 		jal a_r_shift		# Shift aritmetico hacia la derecha de A, Q, Q-1
 		jal print_cycle		# Imprime el ciclo
+		jal print_msg_shift	# Imprime el msg_01
+		
 		jal print_newline	# Imprimir un newline
+		
 		j main_loop		# Regresa al loop principal
 		
 	# Caso 10
 	case_10:
 		sub $s0, $s0, $s1	# A = A - M
 		jal print_cycle		# Imprime el ciclo
+		jal print_msg_10	# Imprime el msg_10
+		
 		jal a_r_shift		# Shift aritmetico hacia la derecha de A, Q, Q-1
 		jal print_cycle		# Imprime el ciclo
-		jal print_newline	# Imprimir un newline
-		j main_loop		# Regresa al loop principal
+		jal print_msg_shift	# Imprime el msg_10
 		
-
-# Imprimir cada ciclo 
-print_cycle:
-	move $t4, $ra			# Guardar direccion de retorno para evitar bucle
+		jal print_newline	# Imprimir un newline
+		
+		j main_loop		# Regresa al loop principal
 	
-	# Imprimir un espacio
-	li $v0, 4
-	la $a0, whitespace
-	syscall
-	
-	# Imprimir contador de ciclos
-	li $v0, 1
-	move $a0, $s5
-	syscall
-	
-	# Imprimir un tab
-	li $v0, 4
-	la $a0, tab
-	syscall
-	
-	# Imprimir A
-	move $t0, $s0			# Almacena A en $t0
-	jal print_bin			# Imprime en binario
-	
-	# Imprimir un tab
-	li $v0, 4
-	la $a0, tab
-	syscall
-	
-	# Imprimir Q
-	move $t0, $s2			# Almacena Q en $t0
-	jal print_bin			# Imprime en binario
-	
-	# Imprimir un tab
-	li $v0, 4
-	la $a0, tab
-	syscall
-	
-	# Imprimir un space
-	li $v0, 4
-	la $a0, whitespace
-	syscall
-	
-	# Imprimir Q-1
-	li $v0, 1
-	move $a0, $s3
-	syscall
-	
-	# Imprimir un tab
-	li $v0, 4
-	la $a0, tab
-	syscall
-	
-	# Imprimir M
-	move $t0, $s1			# Almacena M en $t0
-	jal print_bin			# Imprime en binario
-	
-	# Imprimir un newline
-	li $v0, 4
-	la $a0, newline
-	syscall
-	
-	jr $t4				# Salta a dirección de retorno guardada al inicio
-	
-# ------ OPERACIONES ------ #
-
 # Shift aritmetico hacia la derecha de A, Q, Q-1
 a_r_shift:
-
-# TODO: ARREGLAR SHIFT O PRINT CYCLE, NO SE DONDE ES EL ERROR
-
 	andi $t1, $s0, 1		# Guardar el LSB de A en $t1
 	sll $t1, $t1, 15		# Desplazar 15 posiciones a la izquierda el LSB de A
 	sra $s0, $s0, 1			# Desplazar arit. a la derecha A
@@ -202,10 +155,51 @@ a_r_shift:
 	andi $s2, $s2, 0xFFFF		# Guardar solo los primeros 16 bits de Q (LSB to MSB)
 	srl $s2, $s2, 1			# Desplazar logic. a la derecha Q
 	
-	or $t0, $t0, $t2		# Insertar LSB de A en Q desplazado
+	or $s2, $s2, $t1		# Insertar LSB de A en Q desplazado
 	
-	jr $ra
+	jr $ra				# Salta a dirección de retorno
 	
+# ------ FORMATO STRINGS ------ #
+
+# Imprimir cada ciclo 
+print_cycle:
+	move $t4, $ra			# Guardar direccion de retorno para evitar bucle
+	
+	jal print_whitespace		# Imprimir un whitespace
+	
+	# Imprimir contador de ciclos
+	li $v0, 1
+	move $a0, $s5
+	syscall
+	
+	jal print_tab			# Imprimir un tab
+	
+	# Imprimir A
+	move $t0, $s0			# Almacena A en $t0
+	jal print_bin			# Imprime en binario
+	
+	jal print_tab			# Imprimir un tab
+	
+	# Imprimir Q
+	move $t0, $s2			# Almacena Q en $t0
+	jal print_bin			# Imprime en binario
+	
+	jal print_tab			# Imprimir un tab
+	
+	jal print_whitespace		# Imprimir un whitespace
+	
+	# Imprimir Q-1
+	li $v0, 1
+	move $a0, $s3
+	syscall
+	
+	jal print_tab			# Imprimir un tab
+	
+	# Imprimir M
+	move $t0, $s1			# Almacena M en $t0
+	jal print_bin			# Imprime en binario
+	
+	jr $t4				# Salta a dirección de retorno guardada al inicio
 
 # Imprimir un entero almacenado en $t0 en binario de 16 bits
 print_bin:
@@ -222,31 +216,56 @@ print_bin:
 		sub $t1, $t1, 1		# Decrementar el contador
 		
 		bne $t1, -1, bin_loop	# Saltar a 'bin_loop' si $t1 no es igual a -1
-	jr $ra
-
-
-# ------ FORMATO STRINGS ------ #
-
+	jr $ra				# Salta a dirección de retorno
+	
+# Imprimir un msg_val
+print_msg_val:
+	li $v0, 4
+	la $a0, msg_val
+	syscall
+	jr $ra				# Salta a dirección de retorno
+	
+# Imprimir un msg_shift
+print_msg_shift:
+	li $v0, 4
+	la $a0, msg_shift
+	syscall
+	jr $ra				# Salta a dirección de retorno
+	
+# Imprimir un msg_01
+print_msg_01:
+	li $v0, 4
+	la $a0, msg_01
+	syscall
+	jr $ra				# Salta a dirección de retorno
+	
+# Imprimir un msg_10
+print_msg_10:
+	li $v0, 4
+	la $a0, msg_10
+	syscall
+	jr $ra				# Salta a dirección de retorno
+	
 # Imprimir un tab
 print_tab:
 	li $v0, 4
 	la $a0, tab
 	syscall
-	jr $ra
+	jr $ra				# Salta a dirección de retorno
 	
 # Imprimir un espacio
 print_whitespace:
 	li $v0, 4
 	la $a0, whitespace
 	syscall
-	jr $ra
+	jr $ra				# Salta a dirección de retorno
 	
 # Imprimir un salto de linea
 print_newline:
 	li $v0, 4
 	la $a0, newline
 	syscall
-	jr $ra
+	jr $ra				# Salta a dirección de retorno
 	
 # ------ TERMINAR PROGRAMA ------ #
 

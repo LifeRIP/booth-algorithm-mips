@@ -23,19 +23,21 @@
 	.data
 	
 # Definicion de variables
-whitespace:			.asciiz " "
-tab:				.asciiz "\t"
-newline:			.asciiz "\n"
-msg_multiplicand:		.asciiz "Ingrese multiplicando (M): "
-msg_multiplier:			.asciiz "Ingrese multiplicador (Q): "
-msg_a:				.asciiz "A "
-msg_q:				.asciiz "Q "
-msg_q_1:			.asciiz "Q-1 "
-msg_top:			.asciiz "Ciclo\t\tA\t\t\tQ\t\tQ-1\t\tM\t\t    Procesos\n"
-msg_val:			.asciiz "\tValores iniciales\n"
-msg_shift:			.asciiz "\t[--] >>>\n"
-msg_01:				.asciiz "\t[01] A = A + M\n"
-msg_10:				.asciiz "\t[10] A = A - M\n"
+whitespace:				.asciiz " "
+tab:					.asciiz "\t"
+newline:				.asciiz "\n"
+equal:					.asciiz " = "
+msg_multiplicand:			.asciiz "Ingrese multiplicando (M): "
+msg_multiplier:				.asciiz "Ingrese multiplicador (Q): "
+msg_a:					.asciiz "A "
+msg_q:					.asciiz "Q "
+msg_q_1:				.asciiz "Q-1 "
+msg_top:				.asciiz "Ciclo\t\tA\t\t\tQ\t\tQ-1\t\tM\t\t    Procesos\n"
+msg_val:				.asciiz "\tValores iniciales\n"
+msg_shift:				.asciiz "\t[--] >>>\n"
+msg_01:					.asciiz "\t[01] A = A + M\n"
+msg_10:					.asciiz "\t[10] A = A - M\n"
+msg_output:				.asciiz "Salida: "
 
 # ------  MAIN ------ #
 
@@ -50,10 +52,10 @@ main:
 # Cargar valores iniciales
 init_state:
 	# Incializar variables en 0
-	li $s0, 0	# A
-	li $s3, 0 	# Q-1
-	li $s4, 0 	# Q0
-	li $s5, 0 	# Ciclos
+	li $s0, 0			# A
+	li $s3, 0 			# Q-1
+	li $s4, 0 			# Q0
+	li $s5, 0 			# Ciclos
 	
 	# Imprimir msg_multiplicando
 	li $v0, 4
@@ -63,7 +65,7 @@ init_state:
 	# Leer M (multiplicando)
 	li $v0, 5
 	syscall
-	move $s1, $v0	# Almacenar M en $s1
+	move $s1, $v0			# Almacenar M en $s1
 	
 	# Imprimir msg_multiplicador
 	li $v0, 4
@@ -73,18 +75,18 @@ init_state:
 	# Leer Q (multiplicando)
 	li $v0, 5
 	syscall
-	move $s2, $v0	# Almacenar Q en $s2
+	move $s2, $v0			# Almacenar Q en $s2
 	
 	jal print_newline		# Imprimir un newline
 
-# Imprimir titulos de la tabla
+# Imprimir formato de la tabla
 print_top:
+	# Imprimir titulos de la tabla
 	li $v0, 4
 	la $a0, msg_top
 	syscall
 	
-	# Imprime ciclo 0
-	jal print_cycle			# Imprime el ciclo
+	jal print_cycle			# Imprime ciclo 0
 		
 	jal print_msg_val		# Imprimir un msg_val
 	
@@ -92,7 +94,7 @@ print_top:
 	
 # Bucle para ejecutar los ciclos, while (Ciclos =! 16)
 main_loop:
-	beq $s5, 16, exit		# Saltar a 'exit' si $s5 es igual a 16	
+	beq $s5, 16, print_output	# Saltar a 'exit' si $s5 es igual a 16
 	addi $s5, $s5, 1		# Incrementa el contador de ciclos $s5
 	
 	andi $s4, $s2, 1		# Guardar el LSB de Q en $s4
@@ -266,7 +268,31 @@ print_newline:
 	la $a0, newline
 	syscall
 	jr $ra				# Salta a dirección de retorno
+
+# Imprimir salida
+print_output:
+	li $v0, 4
+	la $a0, msg_output
+	syscall
 	
+	sll $t0, $s0, 16		# Dezplaza 16 posiciones a la izquierda A
+	or $t0, $t0, $s2		# Concatena A con Q en $t0
+	
+	# Imprime la salida en binario
+	li $v0, 35
+	move $a0, $t0
+	syscall
+
+	# Imprime un igual
+	li $v0, 4
+	la $a0, equal
+	syscall
+	
+	# Imprime la salida en decimal
+	li $v0, 1
+	move $a0, $t0
+	syscall
+
 # ------ TERMINAR PROGRAMA ------ #
 
 exit:
